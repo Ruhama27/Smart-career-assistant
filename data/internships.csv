@@ -1,0 +1,11 @@
+internship_id,company,role,required_skills,domain,min_cgpa,location,duration
+I001,Google,Data Analyst,"Python,SQL,Excel",Data Science,8.5,Remote,3 Months
+I002,Amazon,Machine Learning Intern,"Python,Machine Learning,Scikit-learn",AI,8.7,Delhi,6 Months
+I003,Microsoft,Frontend Developer,"HTML,CSS,JavaScript,React",Web Development,7.5,Remote,3 Months
+I004,Infosys,Python Developer,"Python,Django,SQL",Software Development,7.0,Bangalore,6 Months
+I005,TCS,Data Science Intern,"Python,Pandas,NumPy",Data Science,7.5,Remote,2 Months
+I006,Accenture,AI Intern,"Python,TensorFlow,Deep Learning",AI,8.2,Hyderabad,6 Months
+I007,Deloitte,Business Analyst,"Excel,SQL,Power BI",Data Analytics,7.8,Remote,3 Months
+I008,IBM,Backend Developer,"Java,Spring Boot,SQL",Backend Development,8.0,Pune,6 Months
+I009,Wipro,Android Developer,"Java,Kotlin,Android",Mobile Development,7.0,Noida,4 Months
+I010,Oracle,Full Stack Developer,"Python,Django,JavaScript",Software Development,8.0,Gurgaon,6 Months

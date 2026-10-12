@@ -1,4 +1,11 @@
 __pycache__/
+*.pyc
+
 .vscode/
-*.pdf
-JobsFE_backup.csv
+
+.idea/
+
+.env
+
+*.csv.bak
+.pytest_cache/
