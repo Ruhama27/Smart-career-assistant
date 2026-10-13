@@ -1,0 +1,11 @@
+student_id,name,college,branch,year,cgpa,skills,interests,career_goal,preferred_location
+S001,Priyanshi Trehan,MSIT,CSE,3,9.2,"Python,SQL,Pandas","Data Science,AI","Data Scientist","Remote"
+S002,Rahul Sharma,DTU,CSE,3,8.4,"Java,Spring Boot,SQL","Backend Development","Java Developer","Delhi"
+S003,Ananya Gupta,NSUT,IT,3,8.9,"Python,Machine Learning,TensorFlow","Artificial Intelligence","ML Engineer","Remote"
+S004,Rohan Mehta,MAIT,CSE,2,8.1,"HTML,CSS,JavaScript,React","Web Development","Frontend Developer","Remote"
+S005,Sneha Kapoor,BVCOE,IT,3,8.6,"Python,Django,MySQL","Full Stack Development","Software Engineer","Bangalore"
+S006,Arjun Singh,USICT,CSE,4,7.9,"Java,Android,Kotlin","Mobile Development","Android Developer","Noida"
+S007,Neha Verma,MSIT,CSE,3,8.7,"Python,Power BI,Excel","Data Analytics","Data Analyst","Remote"
+S008,Karan Malhotra,NSUT,CSE,4,9.0,"Python,Deep Learning,OpenCV","Computer Vision","AI Engineer","Delhi"
+S009,Isha Arora,MAIT,IT,2,8.2,"C++,Python,SQL","Software Development","Software Engineer","Remote"
+S010,Aman Yadav,DTU,CSE,3,7.8,"JavaScript,Node.js,MongoDB","Full Stack Development","MERN Developer","Gurgaon"

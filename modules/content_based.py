@@ -48,11 +48,15 @@ def recommend_internships(student_id: str, top_n: int = 5) -> list:
     # ── Phase 1 fix: CGPA eligibility filter ──────────────────────────────
     # Exclude internships where the student's CGPA is below the minimum.
     # min_cgpa == 0.0 is treated as "no requirement".
-    eligible_mask = internships["min_cgpa"].apply(
-        lambda min_cgpa: is_cgpa_eligible(
-            student_cgpa=student["cgpa"],
-            min_required=min_cgpa,
-        )
+    s_scale = float(student["cgpa_scale"]) if "cgpa_scale" in student and pd.notna(student["cgpa_scale"]) else 10.0
+    eligible_mask = internships.apply(
+        lambda row: is_cgpa_eligible(
+            student_cgpa=float(student["cgpa"]),
+            min_required=float(row["min_cgpa"]),
+            student_scale=s_scale,
+            internship_scale=float(row["cgpa_scale"]) if "cgpa_scale" in row and pd.notna(row["cgpa_scale"]) else 10.0,
+        ),
+        axis=1,
     )
     eligible_internships = internships[eligible_mask].copy()
 

@@ -1,160 +1,186 @@
 """
-profile.py — Student CRUD operations for PathFinder AI.
+profile.py — Student CRUD operations for PathFinder AI (Phase 2 SQL Edition).
 
-Phase 1 changes:
-  - All CSV I/O now uses load_students() / save_students() from utils.py
-    (data is always reloaded fresh — never stale).
-  - All user inputs use safe helpers from utils.py:
-      get_non_empty_input, get_float_input, get_unique_id
-    so a bad CGPA entry (e.g. typing "eight") no longer crashes the app.
-  - CGPA input is validated to the range 0.0 – 10.0.
+Phase 2 changes:
+  - All operations now use parameterized SQL queries against SQLite (via database.db).
+  - Student skills are stored in a normalized `student_skills` table and `skills` lookup table.
+  - Deletions properly cascade through foreign keys.
+  - Backwards-compatible view formatting for existing CLI interfaces.
 """
 
-import pandas as pd
+from typing import Optional
+from database.db import (
+    add_student as db_add_student,
+    get_student_by_id,
+    get_all_students,
+    update_student as db_update_student,
+    delete_student as db_delete_student,
+)
 from modules.utils import (
-    load_students,
-    save_students,
     get_non_empty_input,
     get_float_input,
     get_int_input,
-    get_unique_id,
 )
 
 
 # ── View all students ─────────────────────────────────────────────────────────
 
 def view_students():
-    students = load_students()
+    """Retrieve and display all student profiles from the SQLite database."""
+    students = get_all_students()
 
     print("\n========== STUDENT DETAILS ==========\n")
 
-    if students.empty:
+    if not students:
         print("No student records found.")
         return
 
-    for _, row in students.iterrows():
+    for row in students:
         print(f"Student ID : {row['student_id']}")
         print(f"Name       : {row['name']}")
-        print(f"College    : {row['college']}")
-        print(f"Branch     : {row['branch']}")
+        print(f"University : {row.get('university') or row.get('college', '')}")
+        print(f"Department : {row.get('department') or row.get('branch', '')}")
         print(f"Year       : {row['year']}")
-        print(f"CGPA       : {row['cgpa']}")
-        print(f"Skills     : {row['skills']}")
-        print(f"Interests  : {row['interests']}")
-        print(f"Career Goal: {row['career_goal']}")
-        print(f"Location   : {row['preferred_location']}")
+        scale_info = f" (scale: {row.get('cgpa_scale', 10.0)})" if row.get("cgpa_scale") else ""
+        print(f"CGPA       : {row['cgpa']}{scale_info}")
+        print(f"Skills     : {row.get('skills', '')}")
+        print(f"Interests  : {row.get('interests', '')}")
+        print(f"Career Goal: {row.get('career_goal', '')}")
+        print(f"Location   : {row.get('location_pref') or row.get('preferred_location', '')}")
         print("-" * 50)
 
 
 # ── Search student ────────────────────────────────────────────────────────────
 
 def search_student():
-    students = load_students()
-
+    """Search for a student by student_id in SQLite."""
     student_id = input("Enter Student ID: ").strip()
 
-    student = students[students["student_id"] == student_id]
+    student = get_student_by_id(student_id)
 
-    if student.empty:
+    if not student:
         print("\nStudent not found!")
     else:
         print("\nStudent Found:\n")
-        print(student.to_string(index=False))
+        print(f"Student ID  : {student['student_id']}")
+        print(f"Name        : {student['name']}")
+        print(f"Email       : {student.get('email') or 'N/A'}")
+        print(f"University  : {student.get('university') or student.get('college', '')}")
+        print(f"Department  : {student.get('department') or student.get('branch', '')}")
+        print(f"Year        : {student['year']}")
+        print(f"CGPA        : {student['cgpa']} (scale: {student.get('cgpa_scale', 10.0)})")
+        print(f"Skills      : {student.get('skills', '')}")
+        print(f"Interests   : {student.get('interests', '')}")
+        print(f"Career Goal : {student.get('career_goal', '')}")
+        print(f"Location    : {student.get('location_pref') or student.get('preferred_location', '')}")
 
 
 # ── Add student ───────────────────────────────────────────────────────────────
 
 def add_student():
-    students = load_students()
+    """Prompt user and insert a new student record into SQLite with normalized skills."""
+    while True:
+        student_id = get_non_empty_input("Student ID: ").strip()
+        if get_student_by_id(student_id):
+            print(f"  [!] Student ID '{student_id}' already exists in database. Please enter a different ID.")
+        else:
+            break
 
-    # Validate unique ID
-    student_id = get_unique_id("Student ID: ", students["student_id"].values)
+    name = get_non_empty_input("Name: ")
+    university = get_non_empty_input("University / College: ")
+    department = get_non_empty_input("Department / Branch: ")
+    year = get_int_input("Year (1-6): ", min_val=1, max_val=6)
 
-    new_student = {
-        "student_id":         student_id,
-        "name":               get_non_empty_input("Name: "),
-        "college":            get_non_empty_input("College: "),
-        "branch":             get_non_empty_input("Branch: "),
-        "year":               get_int_input("Year (1–6): ", min_val=1, max_val=6),
-        # Phase 1 fix: safe float input prevents crash on bad CGPA entry
-        "cgpa":               get_float_input("CGPA (0.0 – 10.0): ", min_val=0.0, max_val=10.0),
-        "skills":             get_non_empty_input("Skills (comma separated): "),
-        "interests":          get_non_empty_input("Interests (comma separated): "),
-        "career_goal":        get_non_empty_input("Career Goal: "),
-        "preferred_location": get_non_empty_input("Preferred Location: "),
-    }
+    scale_choice = input("CGPA Scale (default 10.0, enter 4 for 4.0 scale): ").strip()
+    cgpa_scale = 4.0 if scale_choice == "4" or scale_choice == "4.0" else 10.0
+    cgpa = get_float_input(f"CGPA (0.0 - {cgpa_scale}): ", min_val=0.0, max_val=cgpa_scale)
 
-    students = pd.concat(
-        [students, pd.DataFrame([new_student])],
-        ignore_index=True
+    skills = get_non_empty_input("Skills (comma separated): ")
+    interests = get_non_empty_input("Interests (comma separated): ")
+    career_goal = get_non_empty_input("Career Goal: ")
+    location_pref = get_non_empty_input("Preferred Location: ")
+    email = input("Email (optional): ").strip() or None
+
+    db_add_student(
+        student_id=student_id,
+        name=name,
+        university=university,
+        department=department,
+        year=year,
+        cgpa=cgpa,
+        cgpa_scale=cgpa_scale,
+        career_goal=career_goal,
+        interests=interests,
+        location_pref=location_pref,
+        email=email,
+        skills=skills,
     )
-    save_students(students)
 
-    print("\nStudent added successfully!")
+    print("\nStudent added successfully to SQLite database!")
 
 
 # ── Update student ────────────────────────────────────────────────────────────
 
 def update_student():
-    students = load_students()
-
+    """Update fields of an existing student in SQLite."""
     student_id = input("Enter Student ID: ").strip()
-    index      = students[students["student_id"] == student_id].index
+    student = get_student_by_id(student_id)
 
-    if len(index) == 0:
+    if not student:
         print("Student not found!")
         return
 
-    index = index[0]
-
     print("\nLeave blank if you don't want to change a field.\n")
 
-    name   = input(f"Name ({students.at[index, 'name']}): ").strip()
-    # Phase 1 fix: safe CGPA update — empty string = keep old value
-    cgpa_input = input(f"CGPA ({students.at[index, 'cgpa']}): ").strip()
-    skills = input(f"Skills ({students.at[index, 'skills']}): ").strip()
+    name = input(f"Name ({student['name']}): ").strip()
+    cgpa_input = input(f"CGPA ({student['cgpa']}): ").strip()
+    skills_input = input(f"Skills ({student.get('skills', '')}): ").strip()
+    career_goal = input(f"Career Goal ({student.get('career_goal', '')}): ").strip()
 
+    updates = {}
     if name:
-        students.at[index, "name"] = name
+        updates["name"] = name
+    if career_goal:
+        updates["career_goal"] = career_goal
 
     if cgpa_input:
         try:
-            cgpa = float(cgpa_input)
-            if 0.0 <= cgpa <= 10.0:
-                students.at[index, "cgpa"] = cgpa
+            val = float(cgpa_input)
+            scale = float(student.get("cgpa_scale", 10.0))
+            if 0.0 <= val <= scale:
+                updates["cgpa"] = val
             else:
-                print("  ⚠  CGPA must be between 0.0 and 10.0. Skipping update.")
+                print(f"  [!] CGPA must be between 0.0 and {scale}. Skipping CGPA update.")
         except ValueError:
-            print("  ⚠  Invalid CGPA value entered. Skipping CGPA update.")
+            print("  [!] Invalid numeric value for CGPA. Skipping CGPA update.")
 
-    if skills:
-        students.at[index, "skills"] = skills
+    skills_to_update = skills_input if skills_input else None
 
-    save_students(students)
-
-    print("\nStudent updated successfully!")
+    if updates or skills_to_update is not None:
+        db_update_student(student_id, updates, skills=skills_to_update)
+        print("\nStudent updated successfully in SQLite database!")
+    else:
+        print("\nNo changes made.")
 
 
 # ── Delete student ────────────────────────────────────────────────────────────
 
 def delete_student():
-    students = load_students()
-
+    """Delete a student and cascade relationships from SQLite."""
     student_id = input("Enter Student ID: ").strip()
+    student = get_student_by_id(student_id)
 
-    if student_id not in students["student_id"].values:
+    if not student:
         print("Student not found!")
         return
 
     confirm = input(
-        f"Are you sure you want to delete student '{student_id}'? (yes/no): "
+        f"Are you sure you want to delete student '{student_id}' ({student['name']})? (yes/no): "
     ).strip().lower()
 
     if confirm != "yes":
         print("Delete cancelled.")
         return
 
-    students = students[students["student_id"] != student_id]
-    save_students(students)
-
-    print("\nStudent deleted successfully!")
+    db_delete_student(student_id)
+    print("\nStudent deleted successfully from SQLite database!")

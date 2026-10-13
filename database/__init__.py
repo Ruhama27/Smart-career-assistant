@@ -1,0 +1,4 @@
+"""
+database package for PathFinder AI.
+"""
+from database.db import get_connection, init_db

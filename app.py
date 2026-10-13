@@ -212,24 +212,7 @@ hr { border-color: rgba(255,255,255,0.06) !important; }
 """, unsafe_allow_html=True)
 
 # ─── Data Helpers ───────────────────────────────────────────────────────────
-DATA_STUDENTS     = "data/students.csv"
-DATA_INTERNSHIPS  = "data/internships.csv"
-DATA_RATINGS      = "data/ratings.csv"
-
-def load_students():
-    return pd.read_csv(DATA_STUDENTS)
-
-def save_students(df):
-    df.to_csv(DATA_STUDENTS, index=False)
-
-def load_internships():
-    return pd.read_csv(DATA_INTERNSHIPS)
-
-def save_internships(df):
-    df.to_csv(DATA_INTERNSHIPS, index=False)
-
-def load_ratings():
-    return pd.read_csv(DATA_RATINGS)
+from modules.utils import load_students, load_internships, load_ratings, is_cgpa_eligible
 
 # ─── Recommendation Engines ─────────────────────────────────────────────────
 def content_based_recommend(student_id):
@@ -239,27 +222,43 @@ def content_based_recommend(student_id):
     if student.empty:
         return []
     student = student.iloc[0]
+
+    # CGPA Eligibility Filter
+    s_scale = float(student["cgpa_scale"]) if "cgpa_scale" in student and pd.notna(student["cgpa_scale"]) else 10.0
+    eligible_mask = internships.apply(
+        lambda row: is_cgpa_eligible(
+            student_cgpa=float(student["cgpa"]),
+            min_required=float(row["min_cgpa"]),
+            student_scale=s_scale,
+            internship_scale=float(row["cgpa_scale"]) if "cgpa_scale" in row and pd.notna(row["cgpa_scale"]) else 10.0,
+        ),
+        axis=1,
+    )
+    eligible_internships = internships[eligible_mask].copy()
+    if eligible_internships.empty:
+        return []
+
     student_profile = (
         str(student["skills"]) + " " +
         str(student["interests"]) + " " +
         str(student["career_goal"])
     )
     internship_profiles = (
-        internships["required_skills"] + " " +
-        internships["domain"] + " " +
-        internships["role"]
+        eligible_internships["required_skills"] + " " +
+        eligible_internships["domain"] + " " +
+        eligible_internships["role"]
     )
     docs = [student_profile] + list(internship_profiles)
     vec  = TfidfVectorizer()
     mat  = vec.fit_transform(docs)
     sim  = cosine_similarity(mat[0], mat[1:]).flatten()
-    internships = internships.copy()
-    internships["match_score"] = sim
-    return internships.sort_values("match_score", ascending=False).head(5).to_dict("records")
+    eligible_internships["match_score"] = sim
+    return eligible_internships.sort_values("match_score", ascending=False).head(5).to_dict("records")
 
 def collaborative_recommend(student_id):
     ratings      = load_ratings()
     internships  = load_internships()
+    students     = load_students()
     matrix       = ratings.pivot_table(index="student_id", columns="internship_id", values="rating", fill_value=0)
     if student_id not in matrix.index:
         return []
@@ -275,10 +274,18 @@ def collaborative_recommend(student_id):
             if rating > 0 and matrix.loc[student_id, iid] == 0:
                 recommended[iid] = recommended.get(iid, 0) + rating
     result = []
+    student_rows = students[students["student_id"] == student_id]
+    s_cgpa = float(student_rows.iloc[0]["cgpa"]) if not student_rows.empty else 0.0
+    s_scale = float(student_rows.iloc[0]["cgpa_scale"]) if not student_rows.empty and "cgpa_scale" in student_rows.columns and pd.notna(student_rows.iloc[0]["cgpa_scale"]) else 10.0
+
     for iid, score in sorted(recommended.items(), key=lambda x: x[1], reverse=True):
         row = internships[internships["internship_id"] == iid]
         if not row.empty:
-            r = row.iloc[0].to_dict()
+            i_row = row.iloc[0]
+            i_scale = float(i_row["cgpa_scale"]) if "cgpa_scale" in i_row and pd.notna(i_row["cgpa_scale"]) else 10.0
+            if not is_cgpa_eligible(s_cgpa, float(i_row["min_cgpa"]), student_scale=s_scale, internship_scale=i_scale):
+                continue
+            r = i_row.to_dict()
             r["collab_score"] = score
             result.append(r)
     return result[:5]

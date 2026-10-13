@@ -74,7 +74,8 @@ def collaborative_recommendation(student_id: str,
 
     # ── Phase 1 fix: CGPA eligibility filter ──────────────────────────────
     student_rows = students[students["student_id"] == student_id]
-    student_cgpa = student_rows.iloc[0]["cgpa"] if not student_rows.empty else 0.0
+    student_cgpa = float(student_rows.iloc[0]["cgpa"]) if not student_rows.empty else 0.0
+    student_scale = float(student_rows.iloc[0]["cgpa_scale"]) if not student_rows.empty and "cgpa_scale" in student_rows.columns and pd.notna(student_rows.iloc[0]["cgpa_scale"]) else 10.0
 
     recommendation_list = []
 
@@ -84,9 +85,10 @@ def collaborative_recommendation(student_id: str,
             continue
 
         internship = row.iloc[0]
+        internship_scale = float(internship["cgpa_scale"]) if "cgpa_scale" in internship and pd.notna(internship["cgpa_scale"]) else 10.0
 
         # Skip internships the student is not eligible for
-        if not is_cgpa_eligible(student_cgpa, internship["min_cgpa"]):
+        if not is_cgpa_eligible(student_cgpa, internship["min_cgpa"], student_scale=student_scale, internship_scale=internship_scale):
             continue
 
         recommendation_list.append({

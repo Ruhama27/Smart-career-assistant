@@ -6,18 +6,18 @@ An AI-powered platform that helps students discover internships they're eligible
 
 ---
 
-## 🚀 What's New — Phase 1 Upgrades
+## 🚀 What's New — Phase 2: Database & Data Model Upgrades
 
-This version includes a complete reliability overhaul:
+This release upgrades the system from flat CSV storage to a fully normalized SQLite database architecture:
 
-| Fix | What changed |
+| Upgrade | What Changed |
 |---|---|
-| ✅ **CGPA eligibility filter** | Ineligible internships are never shown — `min_cgpa=0.0` correctly means "no requirement" |
-| ✅ **Safe input validation** | Bad CGPA entry (e.g. typing a word) no longer crashes the app |
-| ✅ **Stale-data bug fixed** | Adding a student then immediately recommending now works correctly |
-| ✅ **CGPA scale normalization** | Compares 4.0-scale and 10.0-scale CGPAs correctly |
-| ✅ **Delete confirmation** | Accidental deletes are prevented with a confirmation prompt |
-| ✅ **Automated tests** | 17 tests covering all Phase 1 changes (`pytest tests/`) |
+| 🗄️ **Normalized SQLite Schema** | Third Normal Form (3NF) database with foreign key constraints in `database/schema.sql` |
+| 🧩 **First-Class Skills Lookup** | Skills stored as individual entities in `skills`, linked through `student_skills` and `internship_skills` |
+| 🔄 **Robust Parameterized SQL** | Full CRUD in `database/db.py`, `modules/profile.py`, and `modules/internship.py` using parameterized queries |
+| 📈 **Expanded Dataset (22+ Records)** | Expanded with Ethiopian university students (DBU, AAU, ASTU, Hawassa, BDU) and tech companies (Safaricom, Ethio Telecom, CBE, Gebeya, Chapa, Meta, Apple, Netflix) |
+| 🛡️ **Automated Migration Tool** | `database/migrate.py` imports legacy data, expands datasets, and archives original CSV files |
+| 🧪 **Comprehensive Test Suite** | **41 automated tests passing** across Phase 1 and Phase 2 (`pytest tests/ -v`) |
 
 ---
 
@@ -34,70 +34,76 @@ PathFinder AI answers four questions for every student:
 
 ---
 
-## ✨ Current Features
+## ✨ Features
 
-### 👩‍🎓 Student Management
-- View, search, add, update, delete student profiles
-- Safe CGPA input (0.0–10.0) with validation
+### 👩‍🎓 Student Management (SQL-Powered)
+- View, search, add, update, delete student profiles directly in SQLite
+- Supports multiple CGPA scales (both 4.0 and 10.0 scale)
+- Normalized skill associations with cascade deletions
 
-### 💼 Internship Management
-- View, search, add, update, delete internship listings
-- `min_cgpa = 0.0` clearly means "no requirement"
+### 💼 Internship Management (SQL-Powered)
+- View, search, add, update, delete internship postings
+- Minimum CGPA validation with `min_cgpa = 0.0` as "no requirement"
+- Track company, role, domain, location, duration, remote status, and required skills
 
 ### 🤖 Recommendation Systems
 | Algorithm | Description |
 |---|---|
-| Content-Based | TF-IDF + cosine similarity on skills, interests, career goal |
-| Collaborative | Ratings from similar students |
-| Hybrid | 70% content-based + 30% collaborative |
+| Content-Based | TF-IDF + cosine similarity on skills, interests, career goals |
+| Collaborative | Rating aggregation from peer students with similar preferences |
+| Hybrid | Weighted ensemble (70% content-based + 30% collaborative) |
 
-**All algorithms filter out internships the student is not eligible for before ranking.**
+**All algorithms enforce hard CGPA eligibility filters before ranking.**
 
-### 📊 Evaluation Metrics
-- Precision, Recall, RMSE (evaluated on synthetic test data)
-
-### 🌐 Web Interface
-```bash
-streamlit run app.py
-# Open: http://localhost:8501
-```
+### 🌐 Web & CLI Interfaces
+- **Web App**: Built with Streamlit (`streamlit run app.py`)
+- **CLI**: Interactive terminal console (`python main.py`)
 
 ---
 
 ## 🛠️ Technologies
 
-- **Python** — core language
-- **Pandas + NumPy** — data manipulation
-- **scikit-learn** — TF-IDF, cosine similarity
-- **Streamlit** — web dashboard
-- **pytest** — automated testing
+- **Python 3.10+** — core language
+- **SQLite 3** — normalized relational database with foreign key cascades
+- **Pandas + NumPy** — dataframes and matrix manipulations
+- **scikit-learn** — TF-IDF vectorization and cosine similarity
+- **Streamlit** — interactive web UI
+- **pytest** — automated unit and integration testing
 
 ---
 
 ## 📂 Project Structure
 
 ```
-PathFinder-AI/
+AI-Internship-Recommendation-Engine/
+│
+├── database/
+│   ├── schema.sql         ← 3NF SQLite schema, relations & compatibility views
+│   ├── db.py              ← Parameterized CRUD functions & connection manager
+│   └── migrate.py         ← Migration & dataset expansion tool
 │
 ├── data/
+│   ├── pathfinder.db      ← Production SQLite database (22 students, 22 internships)
+│   ├── backup_csv/        ← Archived CSV backups
 │   ├── students.csv
 │   ├── internships.csv
 │   └── ratings.csv
 │
 ├── modules/
-│   ├── utils.py           ← NEW: safe inputs, CGPA normalization, data loaders
-│   ├── profile.py         ← Phase 1: safe inputs, fresh data loading
-│   ├── internship.py      ← Phase 1: safe inputs, fresh data loading
-│   ├── content_based.py   ← Phase 1: CGPA filter, fresh data loading
-│   ├── collaborative.py   ← Phase 1: CGPA filter, fresh data loading
-│   ├── hybrid.py          ← Phase 1: fixed duplicate output
-│   └── evaluation.py
+│   ├── utils.py           ← SQLite data loaders, safe input helpers, CGPA normalization
+│   ├── profile.py         ← SQL-based student management
+│   ├── internship.py      ← SQL-based internship management
+│   ├── content_based.py   ← Content-based recommender with eligibility filtering
+│   ├── collaborative.py   ← Collaborative recommender with user-item similarity
+│   ├── hybrid.py          ← Hybrid ensemble recommender
+│   └── evaluation.py      ← Precision, Recall, RMSE evaluation
 │
 ├── tests/
-│   └── test_phase1.py     ← NEW: 17 automated tests
+│   ├── test_phase1.py     ← 21 tests for CGPA normalization & eligibility
+│   └── test_phase2_db.py  ← 20 tests for SQLite schema, normalization, CRUD & cascade
 │
-├── main.py                ← CLI interface
-├── app.py                 ← Streamlit web interface
+├── main.py                ← Interactive CLI entrypoint
+├── app.py                 ← Streamlit web dashboard
 ├── requirements.txt
 └── README.md
 ```
@@ -117,55 +123,25 @@ cd Smart-career-assistant
 pip install -r requirements.txt
 ```
 
-### 3. Run the web interface (recommended)
+### 3. Initialize or Migrate Database
+```bash
+python -m database.migrate
+```
+
+### 4. Run the web interface (recommended)
 ```bash
 streamlit run app.py
 ```
 
-### 4. Or run the CLI
+### 5. Or run the CLI
 ```bash
 python main.py
 ```
 
-### 5. Run tests
+### 6. Run all automated tests
 ```bash
 pytest tests/ -v
 ```
-
----
-
-## 🧠 Recommendation Engine
-
-### Eligibility Filter (runs first — always)
-```
-If student.cgpa < internship.min_cgpa → exclude
-If internship.min_cgpa == 0.0        → no requirement, always include
-```
-
-### Content-Based Scoring
-Uses TF-IDF vectorization + cosine similarity on:
-- Student: `skills + interests + career_goal`
-- Internship: `required_skills + domain + role`
-
-### Collaborative Filtering
-Finds students with similar rating patterns and recommends what they liked.
-
-### Hybrid (default)
-```
-final_score = 0.70 × content_score + 0.30 × collaborative_score
-```
-
----
-
-## 📊 Evaluation
-
-```
-Precision : 0.5    (synthetic test data)
-Recall    : 0.67   (synthetic test data)
-RMSE      : 0.21   (synthetic test data)
-```
-
-> ⚠️ Evaluation uses synthetic data. Replace with real student ratings for meaningful results.
 
 ---
 
@@ -173,12 +149,12 @@ RMSE      : 0.21   (synthetic test data)
 
 | Phase | Status | Focus |
 |---|---|---|
-| Phase 1 | ✅ **Done** | Bug fixes, CGPA filter, safe inputs, tests |
-| Phase 2 | 🔜 Next | SQLite database, normalized schema |
-| Phase 3 | 🔜 | Weighted AI scoring, skill gap analysis |
-| Phase 4 | 🔜 | CV upload & parser, learning roadmap |
-| Phase 5 | 🔜 | Bookmarks, application tracker, dashboards |
-| Phase 6 | 🔜 | Testing, deployment, documentation |
+| Phase 1 | ✅ **Done** | Bug fixes, CGPA filter, safe inputs, 21 tests |
+| Phase 2 | ✅ **Done** | SQLite database, normalized schema, 22+ expanded records, 41 tests |
+| Phase 3 | 🔜 **Next** | Explainable weighted scoring ($S = 0.45K + 0.20I + 0.15E + 0.10L + 0.10T$) & skill gap |
+| Phase 4 | 🔜 | CV parser (PDF/DOCX) & learning roadmap generator |
+| Phase 5 | 🔜 | Application tracker, bookmarks, deadline highlights |
+| Phase 6 | 🔜 | Deployment & portfolio presentation |
 
 ---
 
@@ -187,8 +163,4 @@ RMSE      : 0.21   (synthetic test data)
 **Ruhama Nigusu**
 
 Building PathFinder AI as a portfolio project demonstrating real-world AI engineering:
-recommendation systems, NLP, data modeling, and software engineering best practices.
-
----
-
-⭐ If you found this project useful, please star the repository.
+recommendation systems, NLP, relational data modeling, and software engineering best practices.
